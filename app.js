@@ -71,7 +71,7 @@ taskForm.addEventListener('submit', async e => {
       body: JSON.stringify(newTask)
     });
 
-    if (response.ok) {
+    if (response..ok) {
       const createdTask = await response.json();
       tasks = await localforage.getItem('tasks') || [];
       const taskIndex = tasks.findIndex(t => t.id === tempId);
@@ -182,33 +182,42 @@ async function markTaskForSync(task, operation) {
 }
 
 async function syncPendingOperations() {
-  const pendingSync = await localforage.getItem('pendingSync') || [];
+  let pendingSync = await localforage.getItem('pendingSync') || [];
   if (pendingSync.length === 0) return;
 
   console.log(`Syncing ${pendingSync.length} pending operations...`);
   const failedSyncs = [];
+  let tasks = await localforage.getItem('tasks') || [];
 
   for (const item of pendingSync) {
     try {
       let response;
       if (item.operation === 'create') {
-        const createResponse = await fetch('/.netlify/functions/tasks', {
+        response = await fetch('/.netlify/functions/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item.task)
         });
-        if (!createResponse.ok) throw new Error('Server returned error on create');
-        
-        // After syncing a creation, update its ID in local storage
-        const createdTask = await createResponse.json();
-        const tasks = await localforage.getItem('tasks') || [];
-        const taskIndex = tasks.findIndex(t => t.id === item.task.id); // Find by temp ID
-        if (taskIndex > -1) {
-          tasks[taskIndex].id = createdTask.id;
-          await localforage.setItem('tasks', tasks);
-        }
-        response = createResponse;
 
+        if (!response.ok) throw new Error('Server returned error on create');
+        
+        const createdTask = await response.json(); // Task with permanent ID
+        const tempId = item.task.id;
+        const permanentId = createdTask.id;
+        
+        // Update the main tasks array in local storage
+        const taskIndex = tasks.findIndex(t => t.id === tempId);
+        if (taskIndex > -1) {
+          tasks[taskIndex].id = permanentId;
+        }
+
+        // IMPORTANT: Update any later operations in the queue that refer to this tempId
+        pendingSync.forEach(op => {
+          if (op.task.id === tempId) {
+            op.task.id = permanentId;
+          }
+        });
+        
       } else if (item.operation === 'update') {
         response = await fetch(`/.netlify/functions/tasks`, {
           method: 'PATCH',
@@ -220,6 +229,7 @@ async function syncPendingOperations() {
           method: 'DELETE'
         });
       }
+
       if (!response.ok) throw new Error(`Server returned ${response.status}`);
       console.log(`Synced: ${item.operation} for task ID ${item.task.id}`);
     } catch (err) {
@@ -228,7 +238,9 @@ async function syncPendingOperations() {
     }
   }
 
+  await localforage.setItem('tasks', tasks); // Save the updated tasks array
   await localforage.setItem('pendingSync', failedSyncs);
+  
   if (failedSyncs.length > 0) {
     console.log(`${failedSyncs.length} operations failed to sync and remain in queue.`);
   } else {
