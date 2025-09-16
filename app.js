@@ -71,7 +71,7 @@ taskForm.addEventListener('submit', async e => {
       body: JSON.stringify(newTask)
     });
 
-    if (response..ok) {
+    if (response.ok) {
       const createdTask = await response.json();
       tasks = await localforage.getItem('tasks') || [];
       const taskIndex = tasks.findIndex(t => t.id === tempId);
