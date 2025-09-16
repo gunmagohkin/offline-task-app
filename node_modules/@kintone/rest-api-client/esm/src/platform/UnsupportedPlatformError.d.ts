@@ -1,0 +1,6 @@
+type Platform = "Browser" | "Node.js";
+export declare class UnsupportedPlatformError extends Error {
+    platform: Platform;
+    constructor(platform: Platform);
+}
+export {};

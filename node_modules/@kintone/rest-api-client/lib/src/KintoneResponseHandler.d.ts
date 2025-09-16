@@ -1,0 +1,10 @@
+import type { Response, ResponseHandler } from "./http/HttpClientInterface";
+export declare class KintoneResponseHandler implements ResponseHandler {
+    private enableAbortSearchError;
+    constructor({ enableAbortSearchError }: {
+        enableAbortSearchError: boolean;
+    });
+    handle<T>(response: Promise<Response<T>>): Promise<T>;
+    private handleSuccessResponse;
+    private handleErrorResponse;
+}

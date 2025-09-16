@@ -1,0 +1,245 @@
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background-color: #f5f5f5;
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Status bar */
+#status-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.status.online {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.status.offline {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Main content */
+h1 {
+  margin-top: 60px;
+  margin-bottom: 30px;
+  text-align: center;
+  color: #2c3e50;
+  font-size: 2.5rem;
+  font-weight: 300;
+}
+
+/* Form styles */
+#task-form {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 30px;
+  display: flex;
+  gap: 10px;
+}
+
+#task-input {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+#task-input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+button[type="submit"] {
+  padding: 12px 24px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button[type="submit"]:hover {
+  background-color: #2980b9;
+}
+
+button[type="submit"]:active {
+  transform: translateY(1px);
+}
+
+/* Task list styles */
+#task-list {
+  list-style: none;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+#task-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.3s;
+}
+
+#task-list li:last-child {
+  border-bottom: none;
+}
+
+#task-list li:hover {
+  background-color: #f8f9fa;
+}
+
+#task-list li span {
+  flex: 1;
+  font-size: 16px;
+}
+
+.task-text {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.task-text:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+.task-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-btn {
+  background-color: #f39c12;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.edit-btn:hover {
+  background-color: #e67e22;
+}
+
+.edit-btn:active {
+  transform: translateY(1px);
+}
+
+.delete-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.delete-btn:hover {
+  background-color: #c0392b;
+}
+
+.delete-btn:active {
+  transform: translateY(1px);
+}
+
+/* Empty state */
+#task-list:empty::after {
+  content: 'No tasks yet. Add one above!';
+  display: block;
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+  
+  h1 {
+    font-size: 2rem;
+    margin-top: 70px;
+  }
+  
+  #task-form {
+    flex-direction: column;
+    padding: 15px;
+  }
+  
+  #task-input, button[type="submit"] {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  button[type="submit"] {
+    margin-bottom: 0;
+  }
+  
+  #task-list li {
+    padding: 12px 15px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  #task-list li span {
+    word-break: break-word;
+    width: 100%;
+  }
+  
+  .task-buttons {
+    align-self: flex-end;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* Touch targets for mobile */
+@media (max-width: 480px) {
+  button, .delete-btn, .edit-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  #task-input {
+    min-height: 44px;
+  }
+}

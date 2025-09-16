@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@kintone/rest-api-client": "^5.7.4"
+  }
+}

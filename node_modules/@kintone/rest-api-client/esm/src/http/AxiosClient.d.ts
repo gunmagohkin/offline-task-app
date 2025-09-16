@@ -1,0 +1,17 @@
+import type { HttpClient, RequestConfigBuilder, ResponseHandler } from "./HttpClientInterface";
+import type FormData from "form-data";
+export declare class AxiosClient implements HttpClient {
+    private responseHandler;
+    private requestConfigBuilder;
+    constructor({ responseHandler, requestConfigBuilder, }: {
+        responseHandler: ResponseHandler;
+        requestConfigBuilder: RequestConfigBuilder;
+    });
+    get<T extends object>(path: string, params: any): Promise<T>;
+    getData(path: string, params: any): Promise<ArrayBuffer>;
+    post<T extends object>(path: string, params: any): Promise<T>;
+    postData<T extends object>(path: string, formData: FormData): Promise<T>;
+    put<T extends object>(path: string, params: any): Promise<T>;
+    delete<T extends object>(path: string, params: any): Promise<T>;
+    private sendRequest;
+}
