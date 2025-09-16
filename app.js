@@ -3,21 +3,28 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
 
+// DOM Elements
 const taskForm = document.getElementById('task-form');
 const taskInput = document.getElementById('task-input');
 const taskList = document.getElementById('task-list');
 const statusBar = document.getElementById('status-bar');
+
+// Modal Elements
+const editModal = document.getElementById('edit-modal');
+const editInput = document.getElementById('edit-task-input');
+const saveEditButton = document.getElementById('save-edit-button');
+const closeButton = document.querySelector('.close-button');
+let currentEditingTaskId = null;
 
 // Configure LocalForage
 localforage.config({ name: 'offlineTaskDB' });
 
 // --- DATA & UI FUNCTIONS ---
 
-// Fetch tasks from server or local storage
 async function loadTasks() {
   try {
-    let res = await fetch('/.netlify/functions/tasks');
-    let tasks = await res.json();
+    const res = await fetch('/.netlify/functions/tasks');
+    const tasks = await res.json();
     await localforage.setItem('tasks', tasks);
   } catch (err) {
     console.log('Offline mode: loading local tasks');
@@ -26,15 +33,14 @@ async function loadTasks() {
   renderTasks(tasks);
 }
 
-// Render tasks in UI
 function renderTasks(tasks) {
   taskList.innerHTML = '';
   tasks.sort((a, b) => b.id - a.id).forEach(t => {
     const li = document.createElement('li');
     li.innerHTML = `
-      <span class="task-text" onclick="editTask(${t.id})" title="Click to edit">${t.text}</span>
+      <span class="task-text" onclick="openEditModal(${t.id})" title="Click to edit">${t.text}</span>
       <div class="task-buttons">
-        <button onclick="editTask(${t.id})" class="edit-btn">Edit</button>
+        <button onclick="openEditModal(${t.id})" class="edit-btn">Edit</button>
         <button onclick="deleteTask(${t.id})" class="delete-btn">Delete</button>
       </div>
     `;
@@ -44,68 +50,47 @@ function renderTasks(tasks) {
 
 // --- CRUD OPERATIONS ---
 
-// Add new task
 taskForm.addEventListener('submit', async e => {
   e.preventDefault();
   const taskText = taskInput.value.trim();
   if (!taskText) return;
 
-  const newTask = { id: Date.now(), text: taskText };
+  const tempId = Date.now();
+  const newTask = { id: tempId, text: taskText };
 
-  // Optimistic UI update
-  const tasks = await localforage.getItem('tasks') || [];
+  let tasks = await localforage.getItem('tasks') || [];
   tasks.push(newTask);
   await localforage.setItem('tasks', tasks);
   renderTasks(tasks);
   taskInput.value = '';
 
   try {
-    await fetch('/.netlify/functions/tasks', {
+    const response = await fetch('/.netlify/functions/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newTask)
     });
-    console.log('Task created on server');
+
+    if (response.ok) {
+      const createdTask = await response.json();
+      tasks = await localforage.getItem('tasks') || [];
+      const taskIndex = tasks.findIndex(t => t.id === tempId);
+      if (taskIndex > -1) {
+        tasks[taskIndex].id = createdTask.id;
+        await localforage.setItem('tasks', tasks);
+      }
+      console.log('Task created on server and local ID updated');
+    } else {
+      throw new Error('Server error on task creation');
+    }
+
   } catch (err) {
     console.log('Offline: create queued');
     await markTaskForSync(newTask, 'create');
   }
 });
 
-// Edit task
-async function editTask(id) {
-  const tasks = await localforage.getItem('tasks') || [];
-  const task = tasks.find(t => t.id === id);
-  if (!task) return;
-
-  const newText = prompt('Edit task:', task.text);
-  if (newText === null || newText.trim() === '') return;
-
-  const updatedTask = { ...task, text: newText.trim() };
-
-  // Optimistic UI update
-  const updatedTasks = tasks.map(t => t.id === id ? updatedTask : t);
-  await localforage.setItem('tasks', updatedTasks);
-  renderTasks(updatedTasks);
-
-  try {
-    const response = await fetch(`/.netlify/functions/tasks`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: updatedTask.id, text: updatedTask.text })
-    });
-
-    if (!response.ok) throw new Error(`Server error: ${response.status}`);
-    console.log('Task updated on server');
-  } catch (err) {
-    console.log('Offline: edit queued', err.message);
-    await markTaskForSync(updatedTask, 'update');
-  }
-}
-
-// Delete task
 async function deleteTask(id) {
-  // Optimistic UI update
   let tasks = await localforage.getItem('tasks') || [];
   tasks = tasks.filter(t => t.id !== id);
   await localforage.setItem('tasks', tasks);
@@ -120,36 +105,82 @@ async function deleteTask(id) {
   }
 }
 
+// --- MODAL & EDIT LOGIC ---
+
+async function openEditModal(id) {
+  const tasks = await localforage.getItem('tasks') || [];
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+
+  currentEditingTaskId = id;
+  editInput.value = task.text;
+  editModal.style.display = 'block';
+}
+
+function closeEditModal() {
+  editModal.style.display = 'none';
+  currentEditingTaskId = null;
+}
+
+closeButton.onclick = closeEditModal;
+window.onclick = (event) => {
+  if (event.target == editModal) {
+    closeEditModal();
+  }
+};
+
+saveEditButton.addEventListener('click', async () => {
+  const newText = editInput.value.trim();
+  if (!newText || !currentEditingTaskId) return;
+
+  const tasks = await localforage.getItem('tasks') || [];
+  const task = tasks.find(t => t.id === currentEditingTaskId);
+  if (!task) return;
+
+  const updatedTask = { ...task, text: newText };
+
+  const updatedTasks = tasks.map(t => t.id === currentEditingTaskId ? updatedTask : t);
+  await localforage.setItem('tasks', updatedTasks);
+  renderTasks(updatedTasks);
+  closeEditModal();
+
+  try {
+    const response = await fetch(`/.netlify/functions/tasks`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: updatedTask.id, text: updatedTask.text })
+    });
+
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+    console.log('Task updated on server');
+  } catch (err) {
+    console.log('Offline: edit queued', err.message);
+    await markTaskForSync(updatedTask, 'update');
+  }
+});
+
 // --- OFFLINE SYNCING ---
 
-// Mark tasks for sync when offline
 async function markTaskForSync(task, operation) {
   let pendingSync = await localforage.getItem('pendingSync') || [];
 
-  // ✅ IMPROVED LOGIC: Consolidate 'update' operations
   if (operation === 'update') {
-    // Find if an update for this task already exists
     const existingUpdateIndex = pendingSync.findIndex(
       item => item.operation === 'update' && item.task.id === task.id
     );
 
     if (existingUpdateIndex > -1) {
-      // If it exists, replace it with the newer update
       pendingSync[existingUpdateIndex] = { task, operation };
     } else {
-      // Otherwise, add it as a new operation
       pendingSync.push({ task, operation });
     }
   } else {
-    // For 'create' and 'delete', just add them to the queue
     pendingSync.push({ task, operation });
   }
 
   await localforage.setItem('pendingSync', pendingSync);
 }
 
-
-// Sync pending operations when back online
 async function syncPendingOperations() {
   const pendingSync = await localforage.getItem('pendingSync') || [];
   if (pendingSync.length === 0) return;
@@ -161,11 +192,23 @@ async function syncPendingOperations() {
     try {
       let response;
       if (item.operation === 'create') {
-        response = await fetch('/.netlify/functions/tasks', {
+        const createResponse = await fetch('/.netlify/functions/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item.task)
         });
+        if (!createResponse.ok) throw new Error('Server returned error on create');
+        
+        // After syncing a creation, update its ID in local storage
+        const createdTask = await createResponse.json();
+        const tasks = await localforage.getItem('tasks') || [];
+        const taskIndex = tasks.findIndex(t => t.id === item.task.id); // Find by temp ID
+        if (taskIndex > -1) {
+          tasks[taskIndex].id = createdTask.id;
+          await localforage.setItem('tasks', tasks);
+        }
+        response = createResponse;
+
       } else if (item.operation === 'update') {
         response = await fetch(`/.netlify/functions/tasks`, {
           method: 'PATCH',
